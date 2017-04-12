@@ -126,6 +126,7 @@ function scan () {
         baseVue = baseVue.super
       }
       if (baseVue.config && baseVue.config.devtools) {
+        instance.__VUE_DEVTOOLS_ROOT_UID__ = rootInstances.length
         rootInstances.push(instance)
       }
 
@@ -238,9 +239,10 @@ function capture (instance, _, list) {
   if (process.env.NODE_ENV !== 'production') {
     captureCount++
   }
+  instance.__VUE_DEVTOOLS_UID__ = getUniqueId(instance)
   mark(instance)
   const ret = {
-    id: instance._uid,
+    id: instance.__VUE_DEVTOOLS_UID__,
     name: getInstanceName(instance),
     inactive: !!instance._inactive,
     isFragment: !!instance._isFragment,
@@ -256,7 +258,7 @@ function capture (instance, _, list) {
     ret.top = Infinity
   }
   // check if instance is available in console
-  const consoleId = consoleBoundInstances.indexOf(instance._uid)
+  const consoleId = consoleBoundInstances.indexOf(instance.__VUE_DEVTOOLS_UID__)
   ret.consoleId = consoleId > -1 ? '$vm' + consoleId : null
   // check router view
   const isRouterView2 = instance.$vnode && instance.$vnode.data.routerView
@@ -283,10 +285,10 @@ function capture (instance, _, list) {
  */
 
 function mark (instance) {
-  if (!instanceMap.has(instance._uid)) {
-    instanceMap.set(instance._uid, instance)
+  if (!instanceMap.has(instance.__VUE_DEVTOOLS_UID__)) {
+    instanceMap.set(instance.__VUE_DEVTOOLS_UID__, instance)
     instance.$on('hook:beforeDestroy', function () {
-      instanceMap.delete(instance._uid)
+      instanceMap.delete(instance.__VUE_DEVTOOLS_UID__)
     })
   }
 }
@@ -584,7 +586,7 @@ function scrollIntoView (instance) {
  */
 
 function bindToConsole (instance) {
-  const id = instance._uid
+  const id = instance.__VUE_DEVTOOLS_UID__
   const index = consoleBoundInstances.indexOf(id)
   if (index > -1) {
     consoleBoundInstances.splice(index, 1)
@@ -596,4 +598,13 @@ function bindToConsole (instance) {
     window['$vm' + i] = instanceMap.get(consoleBoundInstances[i])
   }
   window.$vm = instance
+}
+
+/**
+* Returns a devtools unique id for instance.
+* @param {Vue} instance
+*/
+function getUniqueId (instance) {
+  const rootVueId = instance.$root.__VUE_DEVTOOLS_ROOT_UID__
+  return `${rootVueId}:${instance._uid}`
 }
